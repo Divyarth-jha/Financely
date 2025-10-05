@@ -136,7 +136,7 @@ const SignupSignin = () => {
     setLoading(false)
     
   }).catch((error) => {
-    toast.error(errorMessage)
+    toast.error(error.message)
     // Handle Errors here.
     const errorCode = error.code;
     const errorMessage = error.message;
