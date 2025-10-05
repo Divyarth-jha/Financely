@@ -11,26 +11,25 @@ const Header = () => {
   const navigate = useNavigate();
   const [user, loading] = useAuthState(auth);
 
+  // Redirect to dashboard if user is logged in
   useEffect(() => {
     if (user) {
       navigate("/dashboard");
     }
   }, [user, loading, navigate]);
 
-  function logoutfnc() {
+  // Logout function using async/await
+  const logoutfnc = async () => {
     try {
-      signOut(auth)
-        .then(() => {
-          toast.success("Sign-out successful");
-          navigate("/");
-        })
-        .catch((error) => {
-          toast.error(error.message);
-        });
+      await signOut(auth);           // Sign out from Firebase
+      localStorage.clear();          // Clear local storage to avoid cached auth state
+      sessionStorage.clear();        // Clear session storage if any
+      toast.success("Sign-out successful");
+      navigate("/");                 // Redirect to home page
     } catch (error) {
-      toast.error(error.message);
+      toast.error(error.message);    // Show error if sign-out fails
     }
-  }
+  };
 
   return (
     <div className="navbar">
