@@ -11,13 +11,11 @@ import { useAuthState } from 'react-firebase-hooks/auth';
 import TransactionsTable from '../components/TransactionTable';
 import Chart from '../components/Charts/Charts';
 import NoTransactions from '../components/NOtransaction';
-// import Welcome from '../components/welcome/welcome';
-
 
 const Dashboard = () => {
+  const [user, loadingAuth] = useAuthState(auth);
   const [loading, setLoading] = useState(false);
   const [transactions, setTransactions] = useState([]);
-  const [user] = useAuthState(auth);
   const [isExpenseModalVisible, setIsExpenseModalVisible] = useState(false);
   const [isIncomeModalVisible, setIsIncomeModalVisible] = useState(false);
 
@@ -25,14 +23,18 @@ const Dashboard = () => {
   const [expense, setExpense] = useState(0);
   const [totalBalance, setTotalBalance] = useState(0);
 
+  // Redirect/loading while checking auth
+  if (loadingAuth) return <p>Loading...</p>;
+  if (!user) return <p>Please login to access the dashboard.</p>;
+
   const showExpenseModal = () => setIsExpenseModalVisible(true);
   const showIncomeModal = () => setIsIncomeModalVisible(true);
 
   const handleExpenseCancel = () => setIsExpenseModalVisible(false);
   const handleIncomeCancel = () => setIsIncomeModalVisible(false);
 
+  // Add transaction
   const onFinish = (values, type) => {
-    // Make sure values.date is valid
     const date =
       values.date && typeof values.date.format === "function"
         ? values.date.format("YYYY-MM-DD")
@@ -46,137 +48,118 @@ const Dashboard = () => {
     };
     addTransaction(newTransaction);
   };
- 
 
+  async function addTransaction(transaction, many) {
+    if (!user) return;
+    try {
+      const docRef = await addDoc(
+        collection(db, `users/${user.uid}/transactions`),
+        transaction
+      );
 
-
-  async function resetTransactions() {
-  if (!user) return;
-  try {
-    setLoading(true);
-
-    const q = query(collection(db, `users/${user.uid}/transactions`));
-    const querySnapshot = await getDocs(q);
-
-    if (querySnapshot.empty) {
-      toast.info("No transactions to reset.");
-      setLoading(false);
-      return;
+      setTransactions(prev => [...prev, { id: docRef.id, ...transaction }]);
+      if (!many) toast.success("Transaction Added!");
+    } catch (e) {
+      console.error("Error Adding Document:", e);
+      if (!many) toast.error("Couldn't add transaction");
     }
-
-    // Delete all documents
-    const deletePromises = querySnapshot.docs.map((document) =>
-      deleteDoc(doc(db, `users/${user.uid}/transactions`, document.id))
-    );
-
-    await Promise.all(deletePromises);
-
-    // Reset local state
-    setTransactions([]);
-    setIncome(0);
-    setExpense(0);
-    setTotalBalance(0);
-
-    toast.success("All transactions have been reset!");
-  } catch (e) {
-    console.error("Error resetting transactions:", e);
-    toast.error("Could not reset transactions");
-  } finally {
-    setLoading(false);
   }
-}
 
+  // Reset all transactions
+  async function resetTransactions() {
+    if (!user) return;
+    try {
+      setLoading(true);
 
+      const q = query(collection(db, `users/${user.uid}/transactions`));
+      const querySnapshot = await getDocs(q);
 
-  // adddtransaction
- async function addTransaction(transaction, many) {
-  if (!user) return;
-  try {
-    const docRef = await addDoc(
-      collection(db, `users/${user.uid}/transactions`),
-      transaction
-    );
-    console.log("Document written with Id: ", docRef.id);
+      if (querySnapshot.empty) {
+        toast.info("No transactions to reset.");
+        setLoading(false);
+        return;
+      }
 
-    // Only show toast if not a batch
-    if (!many) toast.success("Transaction Added!");
-    setTransactions(prevTransactions => [...prevTransactions, transaction]);
-  } catch (e) {
-    console.error("Error Adding Document:", e);
-    if (!many) toast.error("Couldn't add transaction");
+      const deletePromises = querySnapshot.docs.map((document) =>
+        deleteDoc(doc(db, `users/${user.uid}/transactions`, document.id))
+      );
+
+      await Promise.all(deletePromises);
+
+      setTransactions([]);
+      setIncome(0);
+      setExpense(0);
+      setTotalBalance(0);
+
+      toast.success("All transactions have been reset!");
+    } catch (e) {
+      console.error("Error resetting transactions:", e);
+      toast.error("Could not reset transactions");
+    } finally {
+      setLoading(false);
+    }
   }
-}
 
-
+  // Fetch transactions on user load
   useEffect(() => {
-    if (user) fetchTransactions();
+    if (!user) return;
+    fetchTransactions();
   }, [user]);
 
   async function fetchTransactions() {
     setLoading(true);
-    if (user) {
-      try {
-        const q = query(collection(db, `users/${user.uid}/transactions`));
-        const querySnapshot = await getDocs(q);
-        let transactionsArray = [];
-        querySnapshot.forEach((docSnap) => {
-        transactionsArray.push({ id: docSnap.id, ...docSnap.data() });
-        });
-        setTransactions(transactionsArray);
-        // console.log("Transaction array", transactionsArray);
-        toast.success("Transactions fetched");
-      } catch (e) {
-        console.error("Error fetching transactions:", e);
-        toast.error("Could not fetch transactions");
-      }
+    try {
+      const q = query(collection(db, `users/${user.uid}/transactions`));
+      const querySnapshot = await getDocs(q);
+      const transactionsArray = querySnapshot.docs.map(docSnap => ({
+        id: docSnap.id,
+        ...docSnap.data()
+      }));
+      setTransactions(transactionsArray);
+    } catch (e) {
+      console.error("Error fetching transactions:", e);
+      toast.error("Could not fetch transactions");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
+  // Calculate balance
   useEffect(() => {
-    calculateBalance();
-  }, [transactions]);
-
-  function calculateBalance() {
     let incomeTotal = 0;
     let expensesTotal = 0;
-    transactions.forEach(transaction => {
-      if (transaction.type === "income") {
-        incomeTotal += transaction.amount;
-      } else {
-        expensesTotal += transaction.amount;
-      }
+    transactions.forEach(t => {
+      if (t.type === "income") incomeTotal += t.amount;
+      else expensesTotal += t.amount;
     });
     setIncome(incomeTotal);
     setExpense(expensesTotal);
     setTotalBalance(incomeTotal - expensesTotal);
-  }
+  }, [transactions]);
 
- 
-
- let shortedTransactions = [...transactions].sort((a, b) => {
-  return new Date(a.date) - new Date(b.date);
-});
-
+  const sortedTransactions = [...transactions].sort((a, b) => new Date(a.date) - new Date(b.date));
 
   return (
     <div>
       <Header />
       {loading ? (
-        <p>Loading....</p>
+        <p>Loading...</p>
       ) : (
         <>
-         {/* <Welcome/> */}
           <Cards
             income={income}
             expense={expense}
             totalBalance={totalBalance}
             showExpenseModal={showExpenseModal}
             showIncomeModal={showIncomeModal}
-             resetTransactions={resetTransactions} 
+            resetTransactions={resetTransactions}
           />
-          {transactions && transactions.length!= 0 ? <Chart shortedTransactions={shortedTransactions} /> : <NoTransactions/>}
-          
+
+          {transactions.length ? (
+            <Chart sortedTransactions={sortedTransactions} />
+          ) : (
+            <NoTransactions />
+          )}
 
           <AddExpenseModal
             isExpenseModalVisible={isExpenseModalVisible}
@@ -187,10 +170,12 @@ const Dashboard = () => {
             isIncomeModalVisible={isIncomeModalVisible}
             handleIncomeCancel={handleIncomeCancel}
             onFinish={onFinish}
-           
           />
-           
-          <TransactionsTable transactions={transactions}  addTransaction={ addTransaction}/>
+
+          <TransactionsTable
+            transactions={transactions}
+            addTransaction={addTransaction}
+          />
         </>
       )}
     </div>
