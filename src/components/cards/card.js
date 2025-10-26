@@ -2,15 +2,18 @@ import React from 'react'
 import "./card.css"
 import {Row,Card} from 'antd'
 import Button from '../button/button'
-function Cards  ({showExpenseModal,showIncomeModal,income,expense,totalBalance})  {
+
+function Cards  ({showExpenseModal,showIncomeModal,income,expense,totalBalance,resetTransactions})  {
   return (
     <div>
+
+     
       <Row className='my-row'>
        <Card className="my-card"
        >
         <h2>Current Balance</h2>
         <p className='my-p'>{totalBalance}</p>
-        <Button text="Reset Balance" blue={true}></Button>
+        <Button text="Reset Balance" blue={true} onClick={resetTransactions} ></Button>
 
        </Card>
 

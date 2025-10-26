@@ -13,7 +13,10 @@ import { auth, setDoc, db, doc, provider } from '../../firebase';
 import { useNavigate } from "react-router-dom";
 import { getDoc } from 'firebase/firestore';
 
+
+
 const SignupSignin = () => {
+  
   const [Name, setName] = useState("");
   const [Email, setEmail] = useState("");
   const [Password, setPassword] = useState("");

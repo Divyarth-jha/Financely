@@ -4,13 +4,15 @@ import Header from '../components/Header';
 import Cards from '../components/cards/card';
 import AddExpenseModal from '../components/Modals/addexpense';
 import AddIncomeModal from '../components/Modals/addincome';
-import { addDoc, collection, getDocs, query } from 'firebase/firestore';
+import { deleteDoc, doc, addDoc, collection, getDocs, query } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { toast } from 'react-toastify';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import TransactionsTable from '../components/TransactionTable';
 import Chart from '../components/Charts/Charts';
 import NoTransactions from '../components/NOtransaction';
+import Welcome from '../components/welcome/welcome';
+
 
 const Dashboard = () => {
   const [loading, setLoading] = useState(false);
@@ -44,7 +46,49 @@ const Dashboard = () => {
     };
     addTransaction(newTransaction);
   };
+ 
 
+
+
+  async function resetTransactions() {
+  if (!user) return;
+  try {
+    setLoading(true);
+
+    const q = query(collection(db, `users/${user.uid}/transactions`));
+    const querySnapshot = await getDocs(q);
+
+    if (querySnapshot.empty) {
+      toast.info("No transactions to reset.");
+      setLoading(false);
+      return;
+    }
+
+    // Delete all documents
+    const deletePromises = querySnapshot.docs.map((document) =>
+      deleteDoc(doc(db, `users/${user.uid}/transactions`, document.id))
+    );
+
+    await Promise.all(deletePromises);
+
+    // Reset local state
+    setTransactions([]);
+    setIncome(0);
+    setExpense(0);
+    setTotalBalance(0);
+
+    toast.success("All transactions have been reset!");
+  } catch (e) {
+    console.error("Error resetting transactions:", e);
+    toast.error("Could not reset transactions");
+  } finally {
+    setLoading(false);
+  }
+}
+
+
+
+  // adddtransaction
  async function addTransaction(transaction, many) {
   if (!user) return;
   try {
@@ -75,11 +119,11 @@ const Dashboard = () => {
         const q = query(collection(db, `users/${user.uid}/transactions`));
         const querySnapshot = await getDocs(q);
         let transactionsArray = [];
-        querySnapshot.forEach(doc => {
-          transactionsArray.push(doc.data());
+        querySnapshot.forEach((docSnap) => {
+        transactionsArray.push({ id: docSnap.id, ...docSnap.data() });
         });
         setTransactions(transactionsArray);
-        console.log("Transaction array", transactionsArray);
+        // console.log("Transaction array", transactionsArray);
         toast.success("Transactions fetched");
       } catch (e) {
         console.error("Error fetching transactions:", e);
@@ -108,6 +152,8 @@ const Dashboard = () => {
     setTotalBalance(incomeTotal - expensesTotal);
   }
 
+ 
+
  let shortedTransactions = [...transactions].sort((a, b) => {
   return new Date(a.date) - new Date(b.date);
 });
@@ -120,12 +166,14 @@ const Dashboard = () => {
         <p>Loading....</p>
       ) : (
         <>
+         <Welcome/>
           <Cards
             income={income}
             expense={expense}
             totalBalance={totalBalance}
             showExpenseModal={showExpenseModal}
             showIncomeModal={showIncomeModal}
+             resetTransactions={resetTransactions} 
           />
           {transactions && transactions.length!= 0 ? <Chart shortedTransactions={shortedTransactions} /> : <NoTransactions/>}
           
