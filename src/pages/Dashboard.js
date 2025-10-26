@@ -11,7 +11,7 @@ import { useAuthState } from 'react-firebase-hooks/auth';
 import TransactionsTable from '../components/TransactionTable';
 import Chart from '../components/Charts/Charts';
 import NoTransactions from '../components/NOtransaction';
-import Welcome from '../components/welcome/welcome';
+// import Welcome from '../components/welcome/welcome';
 
 
 const Dashboard = () => {
@@ -166,7 +166,7 @@ const Dashboard = () => {
         <p>Loading....</p>
       ) : (
         <>
-         <Welcome/>
+         {/* <Welcome/> */}
           <Cards
             income={income}
             expense={expense}

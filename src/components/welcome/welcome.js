@@ -20,7 +20,7 @@ function Welcome() {
   return (
     <div className="welcome-container">
       <h1>👋 Welcome, {userName}!</h1>
-      <p>Glad to see you back.</p>
+      
     </div>
   );
 }
